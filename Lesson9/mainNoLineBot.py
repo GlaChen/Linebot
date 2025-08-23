@@ -1,17 +1,12 @@
 from flask import Flask, render_template_string, request, jsonify, abort
 from google import genai
 from dotenv import load_dotenv
-from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import *
-import os
+#import os
 
 load_dotenv() # 讀取 .env 檔案中的環境變數，例如 GEMINI_API_KEY
 app = Flask(__name__) #支援WSGI應用程式
 client = genai.Client() #建立 Google Gemini API 客戶端
 #client = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) #使用自訂的 API 金鑰
-line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
-handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
 
 #@app.route("/") #網頁根目錄頁面
 #def hello_world():
@@ -86,7 +81,7 @@ def chat():
         return jsonify({"error": "請提供問題"}), 400
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash", contents=f"{question},回應請輸出成為html格式,請記得你的名字是華通小助手,你說的語言是繁體中文,你的公司地址在台北市信義區光復南路495號10樓之1,你公司的電話是02-27203001,傳真電話是02-27202801,公司的網址是www.chinacomm.com.tw。"
+            model="gemini-2.5-flash", contents=f"{question},回應請輸出成為html格式,請記得你的名字是華通小助手,你說的語言是繁體中文"
         )
         html_format = response.text.replace("```html","").replace("```","")
         return jsonify({'html': html_format})
@@ -95,23 +90,3 @@ def chat():
     # 這裡可以加入與 Gemini API 的互動邏輯
     # response = f"這是您問的問題：{question}，但目前尚未連接到 Gemini API。"
     # return jsonify({"text": response})
-
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-    return 'OK'
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    
-    response = client.models.generate_content(
-    model="gemini-2.5-flash", contents=event.message.text
-    )
-    message = TextSendMessage(text=response.text)
-    line_bot_api.reply_message(event.reply_token, message)
